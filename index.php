@@ -49,12 +49,15 @@ try {
     if ($method === 'GET') {
         switch ($action) {
             case 'ping':
+                $storage = host_storage_root();
                 host_json(200, [
                     'ok' => true,
                     'service' => 'cms-host-api',
                     'phase' => 'host-gateway',
                     'time' => host_now_iso(),
                     'public_base_url' => host_public_base_url(),
+                    'storage_path' => $storage,
+                    'storage_writable' => is_dir($storage) && is_writable($storage),
                     'api_key_configured' => host_expected_api_key() !== '' && host_expected_api_key() !== 'doi-thanh-chuoi-bi-mat',
                 ]);
 

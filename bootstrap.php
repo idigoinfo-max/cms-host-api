@@ -38,15 +38,50 @@ function host_config(): array
 
 function host_storage_root(): string
 {
+    static $resolved = null;
+    if (is_string($resolved)) {
+        return $resolved;
+    }
+
     $cfg = host_config();
+    $candidates = [];
+
+    $env = trim((string) (getenv('CMS_HOST_STORAGE') ?: getenv('STORAGE_PATH') ?: ''));
+    if ($env !== '') {
+        $candidates[] = $env;
+    }
+
     $path = trim((string) ($cfg['storage_path'] ?? 'data'));
     if ($path === '') {
         $path = 'data';
     }
     if (preg_match('#^([a-zA-Z]:[\\\\/]|/)#', $path) === 1) {
-        return rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+        $candidates[] = rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path), DIRECTORY_SEPARATOR);
+    } else {
+        $candidates[] = HOST_API_ROOT . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
     }
-    return HOST_API_ROOT . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $path);
+
+    // Vibe Host / container thường chỉ ghi được /tmp
+    $candidates[] = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'cms-host-api-data';
+    $candidates[] = '/tmp/cms-host-api-data';
+
+    foreach ($candidates as $candidate) {
+        $candidate = rtrim(str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $candidate), DIRECTORY_SEPARATOR);
+        if ($candidate === '') {
+            continue;
+        }
+        if (!is_dir($candidate)) {
+            @mkdir($candidate, 0775, true);
+        }
+        if (is_dir($candidate) && is_writable($candidate)) {
+            $resolved = $candidate;
+            return $resolved;
+        }
+    }
+
+    // Giữ path config dù không ghi được — lỗi sẽ rõ ở host_ensure_dir
+    $resolved = $candidates[0] ?? (HOST_API_ROOT . DIRECTORY_SEPARATOR . 'data');
+    return $resolved;
 }
 
 function host_queue_root(): string
