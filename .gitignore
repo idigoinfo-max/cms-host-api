@@ -1,0 +1,5 @@
+config.local.php
+/data/queue/*/
+/data/logs/*.log
+!/data/queue/.gitkeep
+!/data/logs/.gitkeep
