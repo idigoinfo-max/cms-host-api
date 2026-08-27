@@ -145,14 +145,29 @@ function host_extract_key(): string
     return '';
 }
 
+/**
+ * Ưu tiên: biến môi trường CMS_HOST_API_KEY / API_KEY (Vibe Host),
+ * rồi config.local.php, rồi config.example.php.
+ */
+function host_expected_api_key(): string
+{
+    foreach (['CMS_HOST_API_KEY', 'API_KEY'] as $envName) {
+        $env = getenv($envName);
+        if (is_string($env) && trim($env) !== '') {
+            return trim($env);
+        }
+    }
+    $cfg = host_config();
+    return trim((string) ($cfg['api_key'] ?? ''));
+}
+
 function host_require_api_key(): void
 {
-    $cfg = host_config();
-    $expected = (string) ($cfg['api_key'] ?? '');
+    $expected = host_expected_api_key();
     if ($expected === '' || $expected === 'doi-thanh-chuoi-bi-mat') {
         host_json(503, [
             'ok' => false,
-            'error' => 'Chưa cấu hình api_key an toàn. Sao chép config.example.php → config.local.php và đổi api_key.',
+            'error' => 'Chưa cấu hình api_key an toàn. Đặt env CMS_HOST_API_KEY trên Vibe Host, hoặc tạo config.local.php từ config.example.php.',
         ]);
     }
     $provided = host_extract_key();

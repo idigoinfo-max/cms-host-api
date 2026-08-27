@@ -22,12 +22,28 @@ require_once __DIR__ . '/bootstrap.php';
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
-host_ensure_dir(host_queue_root());
-host_ensure_dir(host_logs_root());
-host_require_api_key();
-
 $method = strtoupper((string) ($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $action = (string) ($_GET['action'] ?? $_POST['action'] ?? '');
+$path = (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
+
+// Vibe Host health check: GET / (không có API key) phải trả 2xx.
+if ($method === 'GET' && ($action === 'health' || ($action === '' && ($path === '/' || $path === '/index.php')))) {
+    host_json(200, [
+        'ok' => true,
+        'service' => 'cms-host-api',
+        'health' => true,
+        'time' => host_now_iso(),
+    ]);
+}
+
+try {
+    host_ensure_dir(host_queue_root());
+    host_ensure_dir(host_logs_root());
+} catch (Throwable $e) {
+    // Không chặn health; các action thật vẫn cần storage.
+}
+
+host_require_api_key();
 
 try {
     if ($method === 'GET') {
@@ -39,6 +55,7 @@ try {
                     'phase' => 'host-gateway',
                     'time' => host_now_iso(),
                     'public_base_url' => host_public_base_url(),
+                    'api_key_configured' => host_expected_api_key() !== '' && host_expected_api_key() !== 'doi-thanh-chuoi-bi-mat',
                 ]);
 
             case 'queue':
