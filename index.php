@@ -50,6 +50,7 @@ try {
         switch ($action) {
             case 'ping':
                 $storage = host_storage_root();
+                $ephemeral = host_storage_is_ephemeral();
                 host_json(200, [
                     'ok' => true,
                     'service' => 'cms-host-api',
@@ -58,6 +59,10 @@ try {
                     'public_base_url' => host_public_base_url(),
                     'storage_path' => $storage,
                     'storage_writable' => is_dir($storage) && is_writable($storage),
+                    'storage_ephemeral' => $ephemeral,
+                    'storage_warning' => $ephemeral
+                        ? 'Queue đang lưu /tmp — redeploy có thể mất bundle. Đặt CMS_HOST_STORAGE trỏ volume persistent.'
+                        : null,
                     'api_key_configured' => host_expected_api_key() !== '' && host_expected_api_key() !== 'doi-thanh-chuoi-bi-mat',
                 ]);
 
@@ -169,13 +174,27 @@ try {
                 $manifest['trang_thai'] = 'loi';
                 $manifest['loi_message'] = (string) ($body['message'] ?? $body['error'] ?? 'Lỗi không xác định');
                 $manifest['loi_at'] = host_now_iso();
+                if (!empty($body['fb_post_id']) && is_string($body['fb_post_id'])) {
+                    $manifest['fb_post_id'] = (string) $body['fb_post_id'];
+                }
+                if (!empty($body['fb_comment_ids']) && is_array($body['fb_comment_ids'])) {
+                    $manifest['fb_comment_ids'] = array_values($body['fb_comment_ids']);
+                }
                 host_save_manifest($manifest);
-                host_append_log(host_now_iso() . "\tmark_loi\t" . $id . "\t" . $manifest['loi_message']);
+                host_append_log(
+                    host_now_iso()
+                    . "\tmark_loi\t" . $id
+                    . "\t" . $manifest['loi_message']
+                    . "\tfb_post_id=" . (string) ($manifest['fb_post_id'] ?? '')
+                );
                 host_json(200, [
                     'ok' => true,
                     'trang_thai' => 'loi',
                     'id' => $id,
                     'loi_message' => $manifest['loi_message'],
+                    'fb_post_id' => $manifest['fb_post_id'] ?? null,
+                    'fb_comment_ids' => $manifest['fb_comment_ids'] ?? null,
+                    'note' => 'Bundle giữ trên host (trang_thai=loi). Sửa lỗi rồi mark_cho_dang hoặc Đồng bộ lại từ CMS.',
                 ]);
 
             default:

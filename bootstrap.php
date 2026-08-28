@@ -84,6 +84,13 @@ function host_storage_root(): string
     return $resolved;
 }
 
+/** Storage /tmp có thể mất khi container restart — cần volume persistent trên production. */
+function host_storage_is_ephemeral(): bool
+{
+    $path = str_replace('\\', '/', host_storage_root());
+    return str_contains($path, '/tmp') || str_contains($path, 'sys_temp');
+}
+
 function host_queue_root(): string
 {
     return host_storage_root() . DIRECTORY_SEPARATOR . 'queue';

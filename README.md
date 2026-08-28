@@ -61,6 +61,26 @@ data/queue/{id}/
 data/logs/events.log
 ```
 
+### Production: volume persistent (bắt buộc)
+
+Mặc định trên Vibe Host, nếu không cấu hình, API fallback sang **`/tmp/cms-host-api-data`** — **mất hết queue khi redeploy/restart**.
+
+**Cấu hình đúng:**
+
+1. Mount volume trên Vibe Host (vd. `/data/cms-queue`).
+2. Environment variable:
+   ```text
+   CMS_HOST_STORAGE=/data/cms-queue
+   ```
+3. Redeploy → `GET ?action=ping` phải có:
+   - `storage_ephemeral: false`
+   - `storage_path` không chứa `/tmp`
+
+Hoặc trong `config.local.php` (nếu ghi được):
+```php
+'storage_path' => '/data/cms-queue',
+```
+
 ## Endpoints
 
 Auth: `X-Api-Key: <key>` hoặc `Authorization: Bearer <key>` (tránh `?key=` trên production).
